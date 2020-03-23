@@ -12,10 +12,11 @@ from sklearn.datasets import make_blobs, make_circles, make_moons
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 import pandas as pd
+import math
 
 class SMOModel:
     """Container object for the model used for sequential minimal optimization."""
-    
+
     def __init__(self, X, y, C, kernel, alphas, b, errors):
         self.X = X               # training data vector
         self.y = y               # class label vector
@@ -26,27 +27,24 @@ class SMOModel:
         self.errors = errors     # error cache
         self._obj = []           # record of objective function value
         self.m = len(self.X)     # store size of training set
-        
+
 def linear_kernel(x, y, b=1):
     """Returns the linear combination of arrays `x` and `y` with
     the optional bias term `b` (set to 1 by default)."""
-    
+
     return x @ y.T + b # Note the @ operator for matrix multiplication
 
-def polynomial_kernel(x, y):
+def polynomial_kernel(x, y, b=1):
     """Calculate the Kernel value of x and y"""
-    Result = (np.dot(x, y.T)+1)**5
-    # Result = (x @ y.T + 1)**5
-    # Sum = DotProduct(x, y)
-    # Result = (Sum+1)**5
-    
+    Result = ((x @ y.T)+b)**5
+
     return Result
 
 
 def gaussian_kernel(x, y, sigma=1):
     """Returns the gaussian similarity of arrays `x` and `y` with
     kernel width parameter `sigma` (set to 1 by default)."""
-    
+
     if np.ndim(x) == 1 and np.ndim(y) == 1:
         result = np.exp(- (np.linalg.norm(x - y, 2)) ** 2 / (2 * sigma ** 2))
     elif (np.ndim(x) > 1 and np.ndim(y) == 1) or (np.ndim(x) == 1 and np.ndim(y) > 1):
@@ -57,14 +55,16 @@ def gaussian_kernel(x, y, sigma=1):
 
 def Kernel(x, y):
     """Calculate the Kernel value of x and y"""
-    Result = (np.dot(x_train[x, :], x_train[y, :])+1)**5 # Polynomial
+    Result = (np.dot(x_train[x, :], x_train[y, :])+1)**3 # Polynomial
     # Result = (np.dot(x_train[x, :], x_train[y, :])+1) # Linear
-    # Sum = DotProduct(x, y)
-    #Sum = 0.0
-    #for i in range(2):
-    #    Sum = Sum + x_train[x, i]*x_train[y, i]
-    # Result = (Sum+1)**5
-    
+
+    return Result
+
+def KernelTest(x, y):
+    """Calculate the Kernel value of x and y"""
+    Result = (np.dot(x_test[x, :], x_train[y, :])+1)**3 # Polynomial
+    #Result = (np.dot(x_test[x, :], x_train[y, :])+1) # Linear
+
     return Result
 
 # Objective function to optimize
@@ -117,11 +117,11 @@ def plot_decision_boundary(model, ax, resolution=100, colors=('b', 'k', 'r'), le
 
 
 def take_step(i1, i2, model):
-    
+
     # Skip if chosen alphas are the same
     if i1 == i2:
         return 0, model
-    
+
     alph1 = model.alphas[i1]
     alph2 = model.alphas[i2]
     y1 = model.y[i1]
@@ -129,7 +129,7 @@ def take_step(i1, i2, model):
     E1 = model.errors[i1]
     E2 = model.errors[i2]
     s = y1 * y2
-    
+
     # Compute L & H, the bounds on new possible alpha values
     if (y1 != y2):
         L = max(0, alph2 - alph1)
@@ -145,7 +145,7 @@ def take_step(i1, i2, model):
     k12 = model.kernel(model.X[i1], model.X[i2])
     k22 = model.kernel(model.X[i2], model.X[i2])
     eta = 2 * k12 - k11 - k22
-    
+
     # Compute new alpha 2 (a2) if eta is negative
     if (eta < 0):
         a2 = alph2 - y2 * (E1 - E2) / eta
@@ -156,13 +156,13 @@ def take_step(i1, i2, model):
             a2 = L
         elif (a2 >= H):
             a2 = H
-            
+
     # If eta is non-negative, move new a2 to bound with greater objective function value
     else:
         alphas_adj = model.alphas.copy()
         alphas_adj[i2] = L
         # objective function output with a2 = L
-        Lobj = objective_function(alphas_adj, model.y, model.kernel, model.X) 
+        Lobj = objective_function(alphas_adj, model.y, model.kernel, model.X)
         alphas_adj[i2] = H
         # objective function output with a2 = H
         Hobj = objective_function(alphas_adj, model.y, model.kernel, model.X)
@@ -172,25 +172,25 @@ def take_step(i1, i2, model):
             a2 = H
         else:
             a2 = alph2
-            
+
     # Push a2 to 0 or C if very close
     if a2 < 1e-8:
         a2 = 0.0
     elif a2 > (model.C - 1e-8):
         a2 = model.C
-    
+
     # If examples can't be optimized within epsilon (eps), skip this pair
     if (np.abs(a2 - alph2) < eps * (a2 + alph2 + eps)):
         return 0, model
-    
+
     # Calculate new alpha 1 (a1)
     a1 = alph1 + s * (alph2 - a2)
-    
+
     # Update threshold b to reflect newly calculated alphas
     # Calculate both possible thresholds
     b1 = E1 + y1 * (a1 - alph1) * k11 + y2 * (a2 - alph2) * k12 + model.b
     b2 = E2 + y1 * (a1 - alph1) * k12 + y2 * (a2 - alph2) * k22 + model.b
-    
+
     # Set new threshold based on if a1 or a2 is bound by L and/or H
     if 0 < a1 and a1 < C:
         b_new = b1
@@ -203,27 +203,27 @@ def take_step(i1, i2, model):
     # Update model object with new alphas & threshold
     model.alphas[i1] = a1
     model.alphas[i2] = a2
-    
+
     # Update error cache
     # Error cache for optimized alphas is set to 0 if they're unbound
     for index, alph in zip([i1, i2], [a1, a2]):
         if 0.0 < alph < model.C:
             model.errors[index] = 0.0
-    
+
     # Set non-optimized errors based on equation 12.11 in Platt's book
     non_opt = [n for n in range(model.m) if (n != i1 and n != i2)]
     model.errors[non_opt] = model.errors[non_opt] + \
                             y1*(a1 - alph1)*model.kernel(model.X[i1], model.X[non_opt]) + \
                             y2*(a2 - alph2)*model.kernel(model.X[i2], model.X[non_opt]) + model.b - b_new
-    
+
     # Update model threshold
     model.b = b_new
-    
+
     return 1, model
 
 
 def examine_example(i2, model):
-    
+
     y2 = model.y[i2]
     alph2 = model.alphas[i2]
     E2 = model.errors[i2]
@@ -231,7 +231,7 @@ def examine_example(i2, model):
 
     # Proceed if error is within specified tolerance (tol)
     if ((r2 < -tol and alph2 < model.C) or (r2 > tol and alph2 > 0)):
-        
+
         if len(model.alphas[(model.alphas != 0) & (model.alphas != model.C)]) > 1:
             # Use 2nd choice heuristic is choose max difference in error
             if model.errors[i2] > 0:
@@ -241,25 +241,25 @@ def examine_example(i2, model):
             step_result, model = take_step(i1, i2, model)
             if step_result:
                 return 1, model
-            
+
         # Loop through non-zero and non-C alphas, starting at a random point
         for i1 in np.roll(np.where((model.alphas != 0) & (model.alphas != model.C))[0],
                           np.random.choice(np.arange(model.m))):
             step_result, model = take_step(i1, i2, model)
             if step_result:
                 return 1, model
-        
+
         # loop through all alphas, starting at a random point
         for i1 in np.roll(np.arange(model.m), np.random.choice(np.arange(model.m))):
             step_result, model = take_step(i1, i2, model)
             if step_result:
                 return 1, model
-    
+
     return 0, model
 
 
 def train(model):
-    
+
     numChanged = 0
     examineAll = 1
 
@@ -285,7 +285,7 @@ def train(model):
             examineAll = 0
         elif numChanged == 0:
             examineAll = 1
-        
+
     return model
 
 """
@@ -297,7 +297,35 @@ x_train = scaler.fit_transform(X_train, y_train)
 
 y_train[y_train == 0] = -1
 """
+"""
+X_train = np.random.rand(1000,2)*2-1
+X_train[:,0] = X_train[:,0]*2*math.pi
+X_train[:,1] = X_train[:,1]*1.1
+y_train = np.zeros(1000)
+for i in range(len(y_train)):
+    if X_train[i,1] > math.sin(X_train[i,0]):
+        y_train[i] = 1
+    else:
+        y_train[i] = -1
 
+#scaler = StandardScaler()
+#x_train = scaler.fit_transform(X_train, y_train)
+
+x_train = X_train
+"""
+"""
+data = pd.read_csv("sonar-all-data.csv")
+
+x_train = data.iloc[:, 0:60].values
+y = data.iloc[:, 60].values
+for i in range(len(y)):
+    if y[i] == "R":
+        y[i] = 1
+    else:
+        y[i] = -1
+
+y_train = y.astype(int)
+"""
 """
 # Importing the forest cover dataset
 data =pd.read_csv("covtype.csv")
@@ -392,7 +420,7 @@ X_test = sc.transform(X_test)
 y_train[y_train == 0] = -1
 """
 
-# Importing the forest cover dataset
+# Importing the breast cancer dataset
 data = pd.read_csv("breast_cancer_wisconsin_clean.csv")
 X = data.iloc[:, 1:9].values
 y = data.iloc[:, 10].values
@@ -400,16 +428,20 @@ y = data.iloc[:, 10].values
 X = X.astype('float32')
 
 # Feature scaling
-#Max = 0
-#for i in range(len(X[1])):
-#    Max = X[:,i].max()
-#    X[:, i] = X[:, i]/(Max)
-
+Max = 0
+for i in range(len(X[1])):
+    Max = X[:,i].max()
+    X[:, i] = X[:, i]/(3.25*Max)
 
 # Splitting the dataset into the Training set and Test set
 from sklearn.model_selection import train_test_split
 x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 0)
 
+y_train[y_train == 4] = 1
+y_train[y_train == 2] = -1
+
+y_test[y_test == 4] = 1
+y_test[y_test == 2] = -1
 
 # Set model parameters and initial values
 C = 100.0
@@ -422,7 +454,7 @@ tol = 0.001 # error tolerance
 eps = 0.1 # alpha tolerance
 
 # Instantiate model
-model = SMOModel(x_train, y_train, C, linear_kernel,
+model = SMOModel(x_train, y_train, C, polynomial_kernel,
                  initial_alphas, initial_b, np.zeros(m))
 
 # Initialize error cache
@@ -434,8 +466,8 @@ np.random.seed(0)
 output = train(model)
 
 
-# fig, ax = plt.subplots()
-# grid, ax = plot_decision_boundary(output, ax)
+#fig, ax = plt.subplots()
+#grid, ax = plot_decision_boundary(output, ax)
 
 output.alphas.sum()
 SVs = output.alphas.nonzero()
@@ -444,23 +476,43 @@ SVs = SVs[0]
 
 result = decision_function(output.alphas, output.y, output.kernel,
                                   output.X, output.X, output.b) - model.y
-  
-"""
+
+#check1 = (model.alphas * y_train)
+#check2 = gaussian_kernel(x_train, x_test)
+#result = check1 @ check2 - model.b - y_test
+
 PositiveT = 0
 NegativeT = 0
 PositiveF = 0
 NegativeF = 0
-for j in range(len(x_train)):
-    Sum = 0.0
-    for i in range(len(SVs)):
-        Sum = Sum + y_train[int(SVs[i])]*output.alphas[int(SVs[i])]*Kernel(j, int(SVs[i]))
-    Classification = Sum + output.b
-    if Classification > 0 and y_train[j] == 1:
-        PositiveT = PositiveT + 1        
-    elif Classification > 0 and y_train[j] == -1:
-        PositiveF = PositiveF + 1 
-    elif Classification < 0 and y_train[j] == -1:
+for i in range(len(x_train)):
+    if result[i] > 0 and y_train[i] == 1:
+        PositiveT = PositiveT + 1
+    elif result[i] > 0 and y_train[i] == -1:
+        PositiveF = PositiveF + 1
+    elif result[i] < 0 and y_train[i] == -1:
         NegativeT = NegativeT + 1
-    elif Classification < 0 and y_train[j] == 1:
+    else:
+        NegativeF = NegativeF + 1
+
+for i in range(len(SVs)):
+    print(SVs[i], output.alphas[int(SVs[i])])
+
+"""
+check1 = (model.alphas * y_train)
+check2 = polynomial_kernel(x_train, x_test)
+result = check1 @ check2 - model.b  - y_test
+PositiveT = 0
+NegativeT = 0
+PositiveF = 0
+NegativeF = 0
+for i in range(len(x_test)):
+    if result[i] > 0 and y_test[i] == 1:
+        PositiveT = PositiveT + 1
+    elif result[i] > 0 and y_test[i] == -1:
+        PositiveF = PositiveF + 1
+    elif result[i] < 0 and y_test[i] == -1:
+        NegativeT = NegativeT + 1
+    else:
         NegativeF = NegativeF + 1
 """

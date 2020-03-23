@@ -26,16 +26,25 @@ import pandas as pd
 def Kernel(x, y):
     """Calculate the Kernel value of x and y"""
 
-    Result = (np.dot(x_test[x, :], x_train[y, :])+1)**3 # Polynomial
+    #Result = (np.dot(x_test[x, :], x_train[y, :])+1)**5 # Polynomial
     # Result = (np.dot(x_train[x, :], x_train[y, :])+1) # Linear
     # Sum = DotProduct(x, y)
     #Sum = 0.0
     #for i in range(2):
     #    Sum = Sum + x_train[x, i]*x_train[y, i]
     # Result = (Sum+1)**5
-    
-    return Result
 
+    #Gaussian
+    sigma = 1
+    if np.ndim(x_test[x, :]) == 1 and np.ndim(x_train[y, :]) == 1:
+        Result = np.exp(- (np.linalg.norm(x_test[x, :] - x_train[y, :], 2)) ** 2 / (2 * sigma ** 2))
+    elif (np.ndim(x_test[x, :]) > 1 and np.ndim(x_train[y, :]) == 1) or (np.ndim(x_test[x, :]) == 1 and np.ndim(x_train[y, :]) > 1):
+        Result = np.exp(- (np.linalg.norm(x_test[x, :] - x_train[y, :], 2, axis=1) ** 2) / (2 * sigma ** 2))
+    elif np.ndim(x_test[x, :]) > 1 and np.ndim(x_train[y, :]) > 1:
+        Result = np.exp(- (np.linalg.norm(x[:, np.newaxis] - y[np.newaxis, :], 2, axis=2) ** 2) / (2 * sigma ** 2))
+
+    return Result
+"""
 # Importing the dataset
 (x_train, y_train), (x_test1, y_test1) = tf.keras.datasets.mnist.load_data()
 
@@ -62,9 +71,9 @@ y_test = y_test.astype('int')
 y_test1 = y_test1.astype('int')
 
 # Normalising to between 0 and 0.1
-x_train /= 1593.75
-x_test /= 1593.75
-x_test1 /= 1593.75
+x_train /= 2550
+x_test /= 2550
+x_test1 /= 2550
 
 # Redefining the labels
 for i in range(len(y_test)):
@@ -72,7 +81,7 @@ for i in range(len(y_test)):
         y_test[i] = 1
     else:
         y_test[i] = -1
-        
+
 for i in range(len(y_test1)):
     if y_test1[i] == 8:
         y_test1[i] = 1
@@ -84,8 +93,38 @@ for i in range(len(y_train)):
         y_train[i] = 1
     else:
         y_train[i] = -1
+"""
+#x_test = X_test
 
-x_test = X_test
+# Importing the breast cancer dataset
+data = pd.read_csv("breast_cancer_wisconsin_clean.csv")
+X = data.iloc[:, 1:9].values
+y = data.iloc[:, 10].values
+
+X = X.astype('float32')
+
+# Feature scaling
+Max = 0
+for i in range(len(X[1])):
+    Max = X[:,i].max()
+    X[:, i] = X[:, i]/(3.25*Max)
+
+
+# Splitting the dataset into the Training set and Test set
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 0)
+
+# Feature Scaling
+#from sklearn.preprocessing import StandardScaler
+#sc = StandardScaler()
+#x_train = sc.fit_transform(x_train)
+#X_test = sc.transform(X_test)
+
+y_train[y_train == 4] = 1
+y_train[y_train == 2] = -1
+
+y_test[y_test == 4] = 1
+y_test[y_test == 2] = -1
 
 PositiveT = 0
 NegativeT = 0
@@ -97,10 +136,30 @@ for j in range(len(x_test)):
         Sum = Sum + y_train[int(SVs[i])]*alpha[int(SVs[i])]*Kernel(j, int(SVs[i]))
     Classification = Sum + b
     if Classification > 0 and y_test[j] == 1:
-        PositiveT = PositiveT + 1        
+        PositiveT = PositiveT + 1
     elif Classification > 0 and y_test[j] == -1:
-        PositiveF = PositiveF + 1 
+        PositiveF = PositiveF + 1
     elif Classification < 0 and y_test[j] == -1:
         NegativeT = NegativeT + 1
     else:
         NegativeF = NegativeF + 1
+
+"""
+PositiveT = 0
+NegativeT = 0
+PositiveF = 0
+NegativeF = 0
+for j in range(len(x_train)):
+    Sum = 0.0
+    for i in range(len(SVs)):
+        Sum = Sum + y_train[int(SVs[i])]*alpha[int(SVs[i])]*Kernel(j, int(SVs[i]))
+    Classification = Sum + b
+    if Classification > 0 and y_train[j] == 1:
+        PositiveT = PositiveT + 1
+    elif Classification > 0 and y_train[j] == -1:
+        PositiveF = PositiveF + 1
+    elif Classification < 0 and y_train[j] == -1:
+        NegativeT = NegativeT + 1
+    else:
+        NegativeF = NegativeF + 1
+"""
