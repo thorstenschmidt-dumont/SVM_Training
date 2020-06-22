@@ -298,20 +298,31 @@ x_train = scaler.fit_transform(X_train, y_train)
 y_train[y_train == 0] = -1
 """
 """
-X_train = np.random.rand(1000,2)*2-1
-X_train[:,0] = X_train[:,0]*2*math.pi
-X_train[:,1] = X_train[:,1]*1.1
+# Self generated sin wave dataset
+x_train = np.random.rand(1000,2)*2-1
+x_train[:,0] = x_train[:,0]*2*math.pi
+x_train[:,1] = x_train[:,1]*1.1
 y_train = np.zeros(1000)
 for i in range(len(y_train)):
-    if X_train[i,1] > math.sin(X_train[i,0]):
+    if x_train[i,1] > math.sin(x_train[i,0]):
         y_train[i] = 1
     else:
         y_train[i] = -1
 
+x_test = np.random.rand(1000,2)*2-1
+x_test[:,0] = x_test[:,0]*2*math.pi
+x_test[:,1] = x_test[:,1]*1.1
+y_test = np.zeros(1000)
+for i in range(len(x_test)):
+    if x_test[i,1] > math.sin(x_test[i,0]):
+        y_test[i] = 1
+    else:
+        y_test[i] = -1
+
 #scaler = StandardScaler()
 #x_train = scaler.fit_transform(X_train, y_train)
 
-x_train = X_train
+#x_train = X_train
 """
 """
 data = pd.read_csv("sonar-all-data.csv")
@@ -353,11 +364,11 @@ y_train[y_train != 1] = -1
 """
 """
 # Importing the dataset
-(X_train, Y_train), (X_test, Y_test) = tf.keras.datasets.mnist.load_data()
+(X_train, Y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
 # Splitting the dataset into the Training set and Test set
 from sklearn.model_selection import train_test_split
-x_train, x_test, y_train, y_test = train_test_split(X_train, Y_train, test_size = 50/60, random_state = 0)
+x_train, x_test1, y_train, y_test1 = train_test_split(X_train, Y_train, test_size = 50/60, random_state = 0)
 
 # Data preparation and matrix reshaping
 x_train = x_train.transpose(2, 0, 1).reshape(-1, x_train.shape[0])
@@ -374,11 +385,14 @@ y_test = y_test.astype('int')
 
 
 # Normalising to between 0 and 0.01
-# x_train /= 2550
-# x_test /= 2550
+x_train /= 255
+x_test /= 255
 
-scaler = StandardScaler()
-x_train = scaler.fit_transform(x_train, y_train)
+# Feature Scaling
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+x_train = sc.fit_transform(x_train)
+x_test = sc.transform(x_test)
 
 # Redefining the labels
 for i in range(len(y_test)):
@@ -393,7 +407,6 @@ for i in range(len(y_train)):
     else:
         y_train[i] = -1
 
-
 # Create list of all nonzero entries
 List = [[] for i in range(len(x_train))]
 for i in range(len(x_train)):
@@ -401,6 +414,35 @@ for i in range(len(x_train)):
         if x_train[i, j] != 0:
             List[i].append(j)
 """
+dataset_train = pd.read_csv('mnist_train.csv')
+dataset_test = pd.read_csv('mnist_test.csv')
+x_train = dataset_train.iloc[0:9999, 1:].to_numpy()
+y_train = dataset_train.iloc[0:9999, 0].to_numpy()
+
+x_test = dataset_test.iloc[:, 1:].to_numpy()
+y_test = dataset_test.iloc[:, 0].to_numpy()
+
+# Normalising to between 0 and 0.1
+x_train = x_train/2550
+x_test = x_test/2550
+# Redefining the labels
+for i in range(len(y_test)):
+    if y_test[i] == 8:
+        y_test[i] = 1
+    else:
+        y_test[i] = -1
+
+for i in range(len(y_train)):
+    if y_train[i] == 8:
+        y_train[i] = 1
+    else:
+        y_train[i] = -1
+
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+y_train = y_train.astype('int')
+y_test = y_test.astype('int')
+
 """
 # Importing the dataset
 dataset = pd.read_csv('Social_Network_Ads.csv')
@@ -419,7 +461,7 @@ X_test = sc.transform(X_test)
 
 y_train[y_train == 0] = -1
 """
-
+"""
 # Importing the breast cancer dataset
 data = pd.read_csv("breast_cancer_wisconsin_clean.csv")
 X = data.iloc[:, 1:9].values
@@ -435,16 +477,16 @@ for i in range(len(X[1])):
 
 # Splitting the dataset into the Training set and Test set
 from sklearn.model_selection import train_test_split
-x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 0)
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.25)#random_state = 0)
 
 y_train[y_train == 4] = 1
 y_train[y_train == 2] = -1
 
 y_test[y_test == 4] = 1
 y_test[y_test == 2] = -1
-
+"""
 # Set model parameters and initial values
-C = 100.0
+C = 100
 m = len(x_train)
 initial_alphas = np.zeros(m)
 initial_b = 0.0
@@ -477,9 +519,6 @@ SVs = SVs[0]
 result = decision_function(output.alphas, output.y, output.kernel,
                                   output.X, output.X, output.b) - model.y
 
-#check1 = (model.alphas * y_train)
-#check2 = gaussian_kernel(x_train, x_test)
-#result = check1 @ check2 - model.b - y_test
 
 PositiveT = 0
 NegativeT = 0
@@ -495,8 +534,30 @@ for i in range(len(x_train)):
     else:
         NegativeF = NegativeF + 1
 
-for i in range(len(SVs)):
-    print(SVs[i], output.alphas[int(SVs[i])])
+print(PositiveT, PositiveF, NegativeT, NegativeF)
+
+#for i in range(len(SVs)):
+#    print(SVs[i], output.alphas[int(SVs[i])])
+
+check1 = (model.alphas * y_train)
+check2 = polynomial_kernel(x_train, x_test)
+result = check1 @ check2 - model.b - y_test
+
+PositiveT = 0
+NegativeT = 0
+PositiveF = 0
+NegativeF = 0
+for i in range(len(x_test)):
+    if result[i] > 0 and y_test[i] == 1:
+        PositiveT = PositiveT + 1
+    elif result[i] > 0 and y_test[i] == -1:
+        PositiveF = PositiveF + 1
+    elif result[i] < 0 and y_test[i] == -1:
+        NegativeT = NegativeT + 1
+    else:
+        NegativeF = NegativeF + 1
+
+print(PositiveT, PositiveF, NegativeT, NegativeF)
 
 """
 check1 = (model.alphas * y_train)

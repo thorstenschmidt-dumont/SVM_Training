@@ -90,7 +90,7 @@ def Kernel(x, y):
 
 def KernelTest(x, y):
     """Calculate the Kernel value of x and y"""
-
+    
     Result = (np.dot(x_test[x, :], x_train[y, :])+1)**5 # Polynomial
     # Result = (np.dot(x_train[x, :], x_train[y, :])+1) # Linear
     # Sum = DotProduct(x, y)
@@ -339,7 +339,7 @@ def CalculateQBB(QBB, WorkingSet):
 def GenerateSwarm(SwarmSize, WorkingSet):
     Random = np.zeros(q)
     Signs = np.zeros(q)
-    Size = C
+    Size = C/5
     print("Its me")
     
     Sum = 0
@@ -598,6 +598,103 @@ def GenerateV(Swarm, SwarmSize, WorkingSet, Margin):
     return V
 
 
+def Mutation(Swarm):
+    Random = np.zeros(q)
+    Signs = np.zeros(q)
+    Size = C/10
+    #print("Its me")
+    
+    RandomNumber = random.randint(0,q-1)
+    
+    Sum = 0
+    for i in range (q):
+        Signs[i] = y_train[int(WorkingSet[i, 0])]
+        Sum = Sum + Signs[i]
+   # print(Signs)
+    if Sum == q or Sum == -q:
+        Size = WorkingSet[:, 1].max() - WorkingSet[:, 1].min()
+
+
+    Check = 1
+    test = 0
+    Counter = 0
+    while Check != 3:
+        Sum = 0.0
+        Signs[q-1] = y_train[int(WorkingSet[q-1, 0])]
+        for j in range(q-1):
+            Random[j] = random.random()*Size - Size/2
+            Signs[j] = y_train[int(WorkingSet[j, 0])]
+            if WorkingSet[j, 1] + Random[j] > C or WorkingSet[j, 1] + Random[j] < 0:
+                Random[j] = -Random[j]
+            Sum = Sum + y_train[int(WorkingSet[j, 0])]*Random[j]
+        # Have to adjust random numbers to make the set feasible
+        if -1*Signs[q-1]*Sum + WorkingSet[q-1, 1] < 0:
+            Margin = -1*(Signs[q-1]*Sum + WorkingSet[q-1, 1])
+            j = 0
+            while j < q-1:
+                if Signs[j] == 1:
+                    if WorkingSet[j, 1] + Random[j] + Margin < C and WorkingSet[j, 1] + Random[j] + Margin > 0:
+                        Random[j] = Random[j] + Margin
+                        j = q
+                        Check = 3
+                else:
+                    if WorkingSet[j, 1] + Random[j] - Margin > 0 and WorkingSet[j, 1] + Random[j] - Margin < C:
+                        Random[j] = Random[j] - Margin
+                        j = q
+                        Check = 3
+                j = j + 1
+                test = 1
+
+        if -1*Signs[q-1]*Sum + WorkingSet[q-1,1] > C:
+            Margin = -1*Signs[q-1]*Sum + WorkingSet[q-1,1] - C
+            j = 0
+            while j < q-1:
+                if Signs[j] == 1:
+                    if WorkingSet[j, 1] + Random[j] + Margin < C and WorkingSet[j, 1] + Random[j] + Margin > 0:
+                        Random[j] = Random[j] + Margin
+                        j = q
+                        Check = 3
+                else:
+                    if WorkingSet[j, 1] + Random[j] - Margin > 0 and WorkingSet[j, 1] + Random[j] - Margin < C:
+                        Random[j] = Random[j] - Margin
+                        j = q
+                        Check = 3
+                j = j+1
+                test = 2
+
+        Sum = 0.0
+        for j in range(q-1):
+            Sum = Sum + y_train[int(WorkingSet[j, 0])]*Random[j]
+        Random[q-1] = -1*y_train[int(WorkingSet[q-1, 0])]*Sum
+            
+        for j in range(q):
+            Swarm[RandomNumber, j] = WorkingSet[j, 1] + Random[j]
+            for j in range(q):
+                if Swarm[RandomNumber, j] > C or Swarm[RandomNumber, j] < 0:
+                    Check = 1
+                else:
+                    Check = 3
+
+    Sum = 0.0
+    for j in range(q):
+        Sum = Sum + Random[j]*Signs[j]
+    if Sum != 0:
+        print("Non linear problem")
+        print(Random)
+        print(Signs)
+        print(WorkingSet)
+        print(test)
+        Check = 1
+    #print("Im done")
+    # print(Swarm)
+    #if Swarm.min() < 0 or Swarm.max() > C:
+        #print("Generation Problem")
+        #print(test)
+        # print(WorkingSet)
+        #print(Swarm)
+    
+    return Swarm
+
 def CLPSO(WorkingSet, QBB, qBN):
     # Initialisation
     w = 0.7     # inertia weight
@@ -606,7 +703,7 @@ def CLPSO(WorkingSet, QBB, qBN):
     rho = 1
     SwarmSize = 10
     Velocity = np.zeros((SwarmSize, q))
-    MaxIterations = 100
+    MaxIterations = 200
     Swarm1 = np.zeros((SwarmSize, q))
     tracker = np.zeros(MaxIterations + 1)
     Swarm = GenerateSwarm(SwarmSize, WorkingSet)
@@ -649,10 +746,16 @@ def CLPSO(WorkingSet, QBB, qBN):
         if Check.min() < 0 or Check.max() > C:
             print("Trouble")
         
+        r = np.random.rand()
+        Rt = k/MaxIterations
+        rand_select = np.random.randint(0,SwarmSize)
+        
         for i in range(SwarmSize):
             for j in range(q):
                 if SwarmValue[i, q] == GBest[q]: # max(SwarmValue[:, q]):
                    Velocity[i, j] = rho*V[i, j] # PBest[i, j] - SwarmValue[i, j] + rho*V[i, j]
+                elif r < Rt: #Information sharing between particles
+                    Velocity[i, j] = w*Velocity[i, j] + c1*r1*(PBest[i, j]-SwarmValue[i, j]) + c2*r2*(PBest[rand_select, j]-SwarmValue[i, j])
                 else:
                     Velocity[i, j] = w*Velocity[i, j] + c1*r1*(PBest[i, j]-SwarmValue[i, j]) + c2*r2*(GBest[j]-SwarmValue[i, j])
 
@@ -676,12 +779,12 @@ def CLPSO(WorkingSet, QBB, qBN):
                 Swarm[i][j] = delta1*Velocity[i][j] + Swarm[i][j]
             if delta1 == 0:
                 Sum = Sum + 1
-        
+        """
         if Sum == SwarmSize:
             Margin = Margin/7
             V = GenerateV(Swarm, SwarmSize, WorkingSet, Margin)
             Swarm = Swarm + V
-        
+        """
         # Determine new objective value
         ObjValue = DetermineObj(Swarm, QBB, qBN)
 
@@ -704,6 +807,51 @@ def CLPSO(WorkingSet, QBB, qBN):
         for i in range(10):
             if tracker[k-i]-tracker[k-i-1] == 0:
                 Count = Count + 1
+                
+        # Determine whether mutation is necessary
+        average_fitness = np.mean(ObjValue)
+        Sum = 0
+        sigma_squared = 0.2
+        mutation_prob = 0.3
+        MaxDiff = 0
+        for i in range(SwarmSize):
+            if abs(ObjValue[i]-average_fitness) > MaxDiff:
+                MaxDiff = abs(ObjValue[i]-average_fitness)
+        f = max(MaxDiff,1)
+        for i in range(SwarmSize):
+            Sum = Sum + (ObjValue[i]-average_fitness)/f
+        if Sum < sigma_squared:
+            pm = mutation_prob
+        else:
+            pm = 0
+        
+        if random.random() < pm:
+            
+            Swarm = Mutation(Swarm)
+            
+            # Determine new objective value
+            ObjValue = DetermineObj(Swarm, QBB, qBN)
+    
+            SwarmValue = np.column_stack([Swarm, ObjValue])
+            # Determine PBest
+            for i in range(SwarmSize):
+                if PBest[i, q] < SwarmValue[i, q] and Swarm[i,:].min() >= 0 and Swarm[i,:].max() <= C:
+                    PBest[i, :] = SwarmValue[i, :]
+    
+            # Determine GBest
+            for i in range(SwarmSize):
+                if PBest[i, q] > GBest[q]:
+                    for j in range(q+1):
+                        GBest[j] = PBest[i, j]
+            tracker[k] = GBest[q]
+            if k > 1 and tracker[k] < tracker[k-1]:
+                print("Shit hit the fan")
+                Terminate = True
+            Count = 0
+            for i in range(10):
+                if tracker[k-i]-tracker[k-i-1] == 0:
+                    Count = Count + 1
+                
         # if Count == 5:
         #     Random = np.random.randint(0, SwarmSize)
             """
@@ -876,35 +1024,50 @@ y_train[y_train == 0] = -1
 
 x_train = x_train/2.5
 """
-
+"""
 # Importing the dataset
-#(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
 # Splitting the dataset into the Training set and Test set
-#from sklearn.model_selection import train_test_split
-#x_train, x_test1, y_train, y_test1 = train_test_split(x_train, y_train, test_size = 50/60, random_state = 0)
+from sklearn.model_selection import train_test_split
+x_train, x_test1, y_train, y_test1 = train_test_split(x_train, y_train, test_size = 50/60)#, random_state = 0)
 
 # Data preparation and matrix reshaping
-#x_train = x_train.transpose(2, 0, 1).reshape(-1, x_train.shape[0])
-#x_train = np.transpose(x_train)
+x_train = x_train.transpose(2, 0, 1).reshape(-1, x_train.shape[0])
+x_train = np.transpose(x_train)
 
-#x_test = x_test.transpose(2, 0, 1).reshape(-1, x_test.shape[0])
-#x_test = np.transpose(x_test)
-
-#img_rows = 28
-#img_cols = 28
-
-#x_train = x_train.reshape(x_train.shape[0], img_rows*img_cols)
-#x_test = x_test.reshape(x_test.shape[0], img_rows*img_cols)
-#x_test1 = x_test1.reshape(x_test1.shape[0], img_rows*img_cols)
-
+x_test = x_test.transpose(2, 0, 1).reshape(-1, x_test.shape[0])
+x_test = np.transpose(x_test)
 
 # Redefine matrix as float for division operation
-#x_train = x_train.astype('float32')
-#x_test = x_test.astype('float32')
-#y_train = y_train.astype('int')
-#y_test = y_test.astype('int')
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+y_train = y_train.astype('int')
+y_test = y_test.astype('int')
 
+# Normalising to between 0 and 0.1
+x_train /= 2550
+x_test /= 2550
+# Redefining the labels
+for i in range(len(y_test)):
+    if y_test[i] == 8:
+        y_test[i] = 1
+    else:
+        y_test[i] = -1
+
+for i in range(len(y_train)):
+    if y_train[i] == 8:
+        y_train[i] = 1
+    else:
+        y_train[i] = -1
+
+# Create list of all nonzero entries
+List = [[] for i in range(len(x_train))]
+for i in range(len(x_train)):
+    for j in range(784):
+        if x_train[i, j] != 0:
+            List[i].append(j)      
+"""
 
 dataset_train = pd.read_csv('mnist_train.csv')
 dataset_test = pd.read_csv('mnist_test.csv')
@@ -934,14 +1097,6 @@ x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
 y_train = y_train.astype('int')
 y_test = y_test.astype('int')
-
-# Create list of all nonzero entries
-#List = [[] for i in range(len(x_train))]
-#for i in range(len(x_train)):
-#    for j in range(784):
-#        if x_train[i, j] != 0:
-#            List[i].append(j)      
-
 
 """
 # Importing the forest cover dataset
@@ -1011,7 +1166,7 @@ for p in range(1):
     epsilon = 0.1
     error = 0.001
     q = 4
-    C = 100
+    C = 1000
     Gamma = min(countX(y_train.tolist(), 1), countX(y_train.tolist(), -1))
     gamma = 1
     alpha = np.zeros(len(x_train))
@@ -1162,7 +1317,7 @@ for p in range(1):
                 #    print(i)
                 #    print(alpha[i])
                 #    print(y_train[i]*(s[i]+b))
-        if (Sum1 + Sum2 + Sum3) >= len(alpha)*0.95:# or iterations == 100:
+        if (Sum1 + Sum2 + Sum3) >= len(alpha)*0.95:#  or iterations == 10000:
             Terminate = True
         print(Sum1 + Sum2 + Sum3)
         # if(len(alpha)-(Sum1 + Sum2 + Sum3)) < 2:
@@ -1172,9 +1327,6 @@ for p in range(1):
         print(Check3 - Sum3)
         # print(np.count_nonzero(alpha))
         # print(iterations)
-        
-        print("These are the s-values ", max(s), min(s))
-        
         Sum = 0.0
         for i in range(len(x_train)):
             Sum = Sum + y_train[i]*alpha[i]
@@ -1222,14 +1374,11 @@ for j in range(len(x_train)):
         NegativeT = NegativeT + 1
     else:
         NegativeF = NegativeF + 1
-
-print(PositiveT,PositiveF, NegativeT, NegativeF)
-
+        
 Sum = 0
 for i in range(len(x_train)):
     if alpha[i] < 0:
         Sum = Sum + 1
-        alpha[i] = 0
 print(Sum)
 
 PositiveT = 0
@@ -1253,5 +1402,3 @@ for j in range(len(x_test)):
 print(PositiveT,PositiveF, NegativeT, NegativeF)
 
 
-#for i in range(len(SVs)):
-#    print(SVs[i], alpha[int(SVs[i])])

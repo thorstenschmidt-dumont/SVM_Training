@@ -73,10 +73,10 @@ def Kernel(x, y):
 def Kernel(x, y):
     """Calculate the Kernel value of x and y"""
 
-    Result = (np.dot(x_train[x, :], x_train[y, :])+1)**5 # Polynomial
+    #Result = (np.dot(x_train[x, :], x_train[y, :])+1)**5 # Polynomial
     #Result = (np.dot(x_train[x, :], x_train[y, :])+1) # Linear
     #Gaussian
-    """
+    
     sigma = 1
     if np.ndim(x_train[x, :]) == 1 and np.ndim(x_train[y, :]) == 1:
         Result = np.exp(- (np.linalg.norm(x_train[x, :] - x_train[y, :], 2)) ** 2 / (2 * sigma ** 2))
@@ -84,21 +84,21 @@ def Kernel(x, y):
         Result = np.exp(- (np.linalg.norm(x_train[x, :] - x_train[y, :], 2, axis=1) ** 2) / (2 * sigma ** 2))
     elif np.ndim(x_train[x, :]) > 1 and np.ndim(x_train[y, :]) > 1:
         Result = np.exp(- (np.linalg.norm(x[:, np.newaxis] - y[np.newaxis, :], 2, axis=2) ** 2) / (2 * sigma ** 2))
-    """
+    
     return Result
 
 
 def KernelTest(x, y):
     """Calculate the Kernel value of x and y"""
 
-    Result = (np.dot(x_test[x, :], x_train[y, :])+1)**5 # Polynomial
+    #Result = (np.dot(x_test[x, :], x_train[y, :])+1)**5 # Polynomial
     # Result = (np.dot(x_train[x, :], x_train[y, :])+1) # Linear
     # Sum = DotProduct(x, y)
     #Sum = 0.0
     #for i in range(2):
     #    Sum = Sum + x_train[x, i]*x_train[y, i]
     # Result = (Sum+1)**5
-    """
+    
     #Gaussian
     sigma = 1
     if np.ndim(x_test[x, :]) == 1 and np.ndim(x_train[y, :]) == 1:
@@ -107,7 +107,7 @@ def KernelTest(x, y):
         Result = np.exp(- (np.linalg.norm(x_test[x, :] - x_train[y, :], 2, axis=1) ** 2) / (2 * sigma ** 2))
     elif np.ndim(x_test[x, :]) > 1 and np.ndim(x_train[y, :]) > 1:
         Result = np.exp(- (np.linalg.norm(x[:, np.newaxis] - y[np.newaxis, :], 2, axis=2) ** 2) / (2 * sigma ** 2))
-    """
+    
     return Result
 
 
@@ -339,7 +339,7 @@ def CalculateQBB(QBB, WorkingSet):
 def GenerateSwarm(SwarmSize, WorkingSet):
     Random = np.zeros(q)
     Signs = np.zeros(q)
-    Size = C
+    Size = 20
     print("Its me")
     
     Sum = 0
@@ -617,7 +617,7 @@ def CLPSO(WorkingSet, QBB, qBN):
     k = 0
     GBest = np.zeros(q+1)
     PBest = np.zeros((SwarmSize, q+1))
-    Margin = C/10
+    Margin = 2
 
     if Swarm.min() < 0 or Swarm.max() > C:
         print("Problem")
@@ -661,6 +661,27 @@ def CLPSO(WorkingSet, QBB, qBN):
         for i in range(SwarmSize):
             delta1 = 1
             delta = 1
+            
+            
+            # Hyperbolic method to adjust velocity
+            for j in range(q):
+                Swarm1[i,j] = Velocity[i,j] + Swarm[i,j]
+                if Swarm1[i,j] < 0 or Swarm1[i,j] > C:
+                    if Velocity[i,j] > (C + 0):
+                        delta = 1/(1+abs(Velocity[i,j]/(C-Swarm[i,j])))
+                        #Velocity[i,j] = Velocity[i,j]/(1+abs(Velocity[i,j]/(C-Swarm[i,j])))
+                    else:
+                        delta = 1/(1+abs(Velocity[i,j]/(Swarm[i,j]-0)))
+                        #Velocity[i,j] = Velocity[i,j]/(1+abs(Velocity[i,j]/(Swarm[i,j]-0)))
+                        #print("This is delta", delta)
+                if delta < delta1:
+                    delta1 = delta
+                    #print("This is delta1", delta1)
+            for j in range(q):
+                Swarm[i,j] = Swarm[i,j] + delta1*Velocity[i,j]
+            
+            """
+            # Clamping to remain within boundaries
             for j in range(q):
                 Swarm1[i, j] = Velocity[i, j] + Swarm[i, j]
                 if Swarm1[i, j] < 0:
@@ -681,7 +702,7 @@ def CLPSO(WorkingSet, QBB, qBN):
             Margin = Margin/7
             V = GenerateV(Swarm, SwarmSize, WorkingSet, Margin)
             Swarm = Swarm + V
-        
+        """
         # Determine new objective value
         ObjValue = DetermineObj(Swarm, QBB, qBN)
 
@@ -834,7 +855,7 @@ x_train = x_train/20
 
 y_train[y_train == 0] = -1
 """
-"""
+
 # The self-generated sin-wave dataset
 x_train = np.random.rand(1000,2)*2-1
 x_train[:,0] = x_train[:,0]*2*math.pi
@@ -855,7 +876,7 @@ for i in range(len(x_test)):
         y_test[i] = 1
     else:
         y_test[i] = -1
-"""
+
 """
 # Importing the dataset
 dataset = pd.read_csv('Social_Network_Ads.csv')
@@ -876,47 +897,31 @@ y_train[y_train == 0] = -1
 
 x_train = x_train/2.5
 """
-
+"""
 # Importing the dataset
-#(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
 # Splitting the dataset into the Training set and Test set
-#from sklearn.model_selection import train_test_split
-#x_train, x_test1, y_train, y_test1 = train_test_split(x_train, y_train, test_size = 50/60, random_state = 0)
+from sklearn.model_selection import train_test_split
+x_train, x_test1, y_train, y_test1 = train_test_split(x_train, y_train, test_size = 50/60, random_state = 0)
 
 # Data preparation and matrix reshaping
-#x_train = x_train.transpose(2, 0, 1).reshape(-1, x_train.shape[0])
-#x_train = np.transpose(x_train)
+x_train = x_train.transpose(2, 0, 1).reshape(-1, x_train.shape[0])
+x_train = np.transpose(x_train)
 
-#x_test = x_test.transpose(2, 0, 1).reshape(-1, x_test.shape[0])
-#x_test = np.transpose(x_test)
-
-#img_rows = 28
-#img_cols = 28
-
-#x_train = x_train.reshape(x_train.shape[0], img_rows*img_cols)
-#x_test = x_test.reshape(x_test.shape[0], img_rows*img_cols)
-#x_test1 = x_test1.reshape(x_test1.shape[0], img_rows*img_cols)
-
+x_test = x_test.transpose(2, 0, 1).reshape(-1, x_test.shape[0])
+x_test = np.transpose(x_test)
 
 # Redefine matrix as float for division operation
-#x_train = x_train.astype('float32')
-#x_test = x_test.astype('float32')
-#y_train = y_train.astype('int')
-#y_test = y_test.astype('int')
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+y_train = y_train.astype('int')
+y_test = y_test.astype('int')
 
-
-dataset_train = pd.read_csv('mnist_train.csv')
-dataset_test = pd.read_csv('mnist_test.csv')
-x_train = dataset_train.iloc[0:9999, 1:].to_numpy()
-y_train = dataset_train.iloc[0:9999, 0].to_numpy()
-
-x_test = dataset_test.iloc[:, 1:].to_numpy()
-y_test = dataset_test.iloc[:, 0].to_numpy()
 
 # Normalising to between 0 and 0.1
-x_train = x_train/2550
-x_test = x_test/2550
+x_train /= 1500
+x_test /= 1500
 # Redefining the labels
 for i in range(len(y_test)):
     if y_test[i] == 8:
@@ -930,19 +935,14 @@ for i in range(len(y_train)):
     else:
         y_train[i] = -1
 
-x_train = x_train.astype('float32')
-x_test = x_test.astype('float32')
-y_train = y_train.astype('int')
-y_test = y_test.astype('int')
-
 # Create list of all nonzero entries
-#List = [[] for i in range(len(x_train))]
-#for i in range(len(x_train)):
-#    for j in range(784):
-#        if x_train[i, j] != 0:
-#            List[i].append(j)      
+List = [[] for i in range(len(x_train))]
+for i in range(len(x_train)):
+    for j in range(784):
+        if x_train[i, j] != 0:
+            List[i].append(j)      
 
-
+"""
 """
 # Importing the forest cover dataset
 data =pd.read_csv("covtype.csv")
@@ -1162,7 +1162,7 @@ for p in range(1):
                 #    print(i)
                 #    print(alpha[i])
                 #    print(y_train[i]*(s[i]+b))
-        if (Sum1 + Sum2 + Sum3) >= len(alpha)*0.95:# or iterations == 100:
+        if (Sum1 + Sum2 + Sum3) >= len(alpha)*0.95:#  or iterations == 10000:
             Terminate = True
         print(Sum1 + Sum2 + Sum3)
         # if(len(alpha)-(Sum1 + Sum2 + Sum3)) < 2:
@@ -1172,9 +1172,6 @@ for p in range(1):
         print(Check3 - Sum3)
         # print(np.count_nonzero(alpha))
         # print(iterations)
-        
-        print("These are the s-values ", max(s), min(s))
-        
         Sum = 0.0
         for i in range(len(x_train)):
             Sum = Sum + y_train[i]*alpha[i]
@@ -1222,14 +1219,11 @@ for j in range(len(x_train)):
         NegativeT = NegativeT + 1
     else:
         NegativeF = NegativeF + 1
-
-print(PositiveT,PositiveF, NegativeT, NegativeF)
-
+        
 Sum = 0
 for i in range(len(x_train)):
     if alpha[i] < 0:
         Sum = Sum + 1
-        alpha[i] = 0
 print(Sum)
 
 PositiveT = 0
@@ -1251,7 +1245,3 @@ for j in range(len(x_test)):
         NegativeF = NegativeF + 1
 
 print(PositiveT,PositiveF, NegativeT, NegativeF)
-
-
-#for i in range(len(SVs)):
-#    print(SVs[i], alpha[int(SVs[i])])
